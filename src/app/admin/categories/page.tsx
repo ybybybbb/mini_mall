@@ -15,7 +15,11 @@ export default async function AdminCategoriesPage() {
   async function deleteCategory(formData: FormData) {
     "use server";
     const id = parseInt(formData.get("id") as string);
-    await prisma.category.delete({ where: { id } });
+    try {
+      await prisma.category.delete({ where: { id } });
+    } catch (error) {
+      return; // 忽略外键约束（分类下有商品时不可删除）
+    }
     revalidatePath("/admin/categories");
   }
 

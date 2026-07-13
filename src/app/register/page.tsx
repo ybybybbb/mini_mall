@@ -26,8 +26,13 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("密码至少 6 位");
+    if (password.length < 8) {
+      setError("密码至少 8 位，需包含大小写字母和数字");
+      setLoading(false);
+      return;
+    }
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError("密码需包含大写字母、小写字母和数字");
       setLoading(false);
       return;
     }

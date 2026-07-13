@@ -21,6 +21,11 @@ export default async function EditProductPage({
     const categoryId = parseInt(formData.get("categoryId") as string);
     const image = (formData.get("image") as string) || null;
 
+    if (!name.trim()) throw new Error("商品名不能为空");
+    if (isNaN(price) || price <= 0) throw new Error("价格必须为正数");
+    if (isNaN(stock) || stock < 0) throw new Error("库存不能为负数");
+    if (isNaN(categoryId)) throw new Error("请选择分类");
+
     await prisma.product.update({
       where: { id: parseInt(id) },
       data: { name, description, price, stock, categoryId, image },

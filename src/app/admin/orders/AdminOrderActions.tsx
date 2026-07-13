@@ -12,22 +12,29 @@ const NEXT_STATUS: Record<string, { action: string; label: string }> = {
 export default function AdminOrderActions({ orderId, status }: { orderId: number; status: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleAction(action: string) {
     setLoading(true);
-    await fetch(`/api/admin/orders/${orderId}`, {
+    setError("");
+    const res = await fetch(`/api/admin/orders/${orderId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "操作失败" }));
+      setError(data.error || "操作失败");
+    }
     setLoading(false);
-    router.refresh();
+    if (res.ok) router.refresh();
   }
 
   const next = NEXT_STATUS[status];
 
   return (
-    <div className="flex gap-2 justify-end">
+    <div className="flex items-center gap-2 justify-end">
+      {error && <span className="text-xs text-red-500">{error}</span>}
       {next && (
         <button
           onClick={() => handleAction(next.action)}

@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+import { rateLimit } from "./rate-limit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -13,6 +14,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
+        }
+
+        // 速率限制：每个邮箱每分钟最多 5 次登录尝试
+        const email = credentials.email as string;
+        const rl = rateLimit(`login:${email}`, 5, 60 * 1000);
+        if (!rl.allowed) {
+          throw new Error("登录尝试过于频繁，请稍后再试");
         }
 
         const user = await prisma.user.findUnique({
@@ -58,5 +66,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    maxAge: 60 * 60, // 1 小时，降低 JWT 被盗用窗口
   },
 });

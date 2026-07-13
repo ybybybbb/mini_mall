@@ -19,13 +19,17 @@ export default function CartClient({
       await deleteItem();
       return;
     }
+    const prevQuantity = quantity;
+    setQuantity(newQty);
     setLoading(true);
-    await fetch(`/api/cart/${itemId}`, {
+    const res = await fetch(`/api/cart/${itemId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantity: newQty }),
     });
-    setQuantity(newQty);
+    if (!res.ok) {
+      setQuantity(prevQuantity); // 失败回滚
+    }
     setLoading(false);
     router.refresh();
   }

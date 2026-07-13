@@ -16,6 +16,10 @@ export async function PATCH(
   const cartItemId = parseInt((await params).id);
   const { quantity } = await request.json();
 
+  if (typeof quantity !== "number" || quantity <= 0 || !Number.isInteger(quantity)) {
+    return NextResponse.json({ error: "数量必须为正整数" }, { status: 400 });
+  }
+
   const cartItem = await prisma.cartItem.findUnique({ where: { id: cartItemId } });
   if (!cartItem || cartItem.userId !== userId) {
     return NextResponse.json({ error: "购物车项不存在" }, { status: 404 });

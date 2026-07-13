@@ -1,5 +1,8 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// NOTE: 金额字段使用 Float（IEEE 754 双精度），展示时用 toFixed(2) 四舍五入。
+// 生产环境建议改为 Int（单位：分）避免浮点精度误差。
 
 generator client {
   provider = "prisma-client-js"

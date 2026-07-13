@@ -17,62 +17,76 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "用户不存在" }, { status: 404 });
   }
 
-  // 获取购物车
-  const cartItems = await prisma.cartItem.findMany({
-    where: { userId },
-    include: { product: true },
-  });
+  // 使用事务：库存检查 + 扣减 + 创建订单 + 清空购物车 原子执行
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const cartItems = await tx.cartItem.findMany({
+        where: { userId },
+        include: { product: true },
+      });
 
-  if (cartItems.length === 0) {
-    return NextResponse.json({ error: "购物车为空" }, { status: 400 });
-  }
+      if (cartItems.length === 0) {
+        throw new OrderError("购物车为空", 400);
+      }
 
-  // 检查库存
-  for (const item of cartItems) {
-    if (item.product.stock < item.quantity) {
-      return NextResponse.json(
-        { error: `"${item.product.name}"库存不足，仅剩 ${item.product.stock} 件` },
-        { status: 400 }
-      );
-    }
-  }
+      for (const item of cartItems) {
+        if (item.product.stock < item.quantity) {
+          throw new OrderError(
+            `"${item.product.name}"库存不足，仅剩 ${item.product.stock} 件`,
+            400
+          );
+        }
+      }
 
-  // 计算价格（含会员折扣）
-  const total = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const membership = getMembership(user.totalSpent);
-  const discount = membership.discount;
-  const finalTotal = total * (1 - discount);
+      const total = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+      const membership = getMembership(user.totalSpent);
+      const discount = membership.discount;
+      const finalTotal = total * (1 - discount);
 
-  // 创建订单
-  const order = await prisma.order.create({
-    data: {
-      userId,
-      total,
-      discount,
-      finalTotal,
-      items: {
-        create: cartItems.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.product.price,
-        })),
-      },
-    },
-    include: { items: true },
-  });
+      const order = await tx.order.create({
+        data: {
+          userId,
+          total,
+          discount,
+          finalTotal,
+          items: {
+            create: cartItems.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.product.price,
+            })),
+          },
+        },
+        include: { items: true },
+      });
 
-  // 扣减库存
-  for (const item of cartItems) {
-    await prisma.product.update({
-      where: { id: item.productId },
-      data: { stock: { decrement: item.quantity } },
+      for (const item of cartItems) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
+
+      await tx.cartItem.deleteMany({ where: { userId } });
+
+      return { orderId: order.id, total, discount, finalTotal };
     });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    if (error instanceof OrderError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: "下单失败" }, { status: 500 });
   }
+}
 
-  // 清空购物车
-  await prisma.cartItem.deleteMany({ where: { userId } });
-
-  return NextResponse.json({ orderId: order.id, total, discount, finalTotal });
+class OrderError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
 }
 
 // 获取用户订单

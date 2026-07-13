@@ -7,7 +7,9 @@ export default async function HomePage({
 }) {
   const params = await searchParams;
   const search = params.search || "";
-  const categoryId = params.category ? parseInt(params.category) : undefined;
+  const searchEncoded = encodeURIComponent(search);
+  const parsed = params.category ? parseInt(params.category) : undefined;
+  const categoryId = parsed !== undefined && !isNaN(parsed) ? parsed : undefined;
 
   const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
 
@@ -58,7 +60,7 @@ export default async function HomePage({
             {categories.map((cat) => (
               <li key={cat.id}>
                 <a
-                  href={`/?category=${cat.id}${search ? `&search=${search}` : ""}`}
+                  href={`/?category=${cat.id}${search ? `&search=${searchEncoded}` : ""}`}
                   className={`block px-3 py-1.5 rounded-lg text-sm transition-colors ${
                     categoryId === cat.id
                       ? "bg-blue-50 text-blue-700 font-medium"

@@ -12,6 +12,13 @@ export async function POST(request: NextRequest) {
   const userId = parseInt((session.user as any).id);
   const { productId, quantity } = await request.json();
 
+  if (!productId || typeof productId !== "number" || productId <= 0) {
+    return NextResponse.json({ error: "无效的商品" }, { status: 400 });
+  }
+  if (!quantity || typeof quantity !== "number" || quantity <= 0) {
+    return NextResponse.json({ error: "数量必须大于0" }, { status: 400 });
+  }
+
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product || product.stock < quantity) {
     return NextResponse.json({ error: "库存不足" }, { status: 400 });

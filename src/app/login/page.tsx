@@ -8,7 +8,11 @@ import Link from "next/link";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const rawCallbackUrl = searchParams.get("callbackUrl") || "/";
+  // 安全校验：只允许站内相对路径，防止 Open Redirect 钓鱼攻击
+  const callbackUrl = rawCallbackUrl.startsWith("http://") || rawCallbackUrl.startsWith("https://") || rawCallbackUrl.startsWith("//")
+    ? "/"
+    : rawCallbackUrl;
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
