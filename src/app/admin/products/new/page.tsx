@@ -12,12 +12,19 @@ export default async function NewProductPage() {
     const price = parseFloat(formData.get("price") as string);
     const stock = parseInt(formData.get("stock") as string);
     const categoryId = parseInt(formData.get("categoryId") as string);
-    const image = (formData.get("image") as string) || null;
+    let image = (formData.get("image") as string) || null;
 
     if (!name.trim()) throw new Error("商品名不能为空");
     if (isNaN(price) || price <= 0) throw new Error("价格必须为正数");
     if (isNaN(stock) || stock < 0) throw new Error("库存不能为负数");
     if (isNaN(categoryId)) throw new Error("请选择分类");
+
+    // 如果没有提供图片URL，自动生成卡通插图
+    if (!image) {
+      const { getProductImageUrl } = await import("@/lib/product-image");
+      const category = await prisma.category.findUnique({ where: { id: categoryId } });
+      image = getProductImageUrl(name, category!.name);
+    }
 
     await prisma.product.create({
       data: { name, description, price, stock, categoryId, image },
@@ -72,7 +79,7 @@ function ProductForm({
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">图片URL（可选）</label>
+        <label className="block text-sm font-medium mb-1">图片URL（可选，留空则自动生成卡通插图）</label>
         <input name="image" defaultValue={initial?.image || ""} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
       <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
